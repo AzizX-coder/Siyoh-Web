@@ -1,0 +1,25 @@
+<!--
+  Shared header/footer fragments for Siyoh email templates.
+  Inline these into the actual templates below — Supabase doesn't support
+  template includes, so this file is documentation/reference only.
+
+  Brand:
+    - Primary orange:   #FF6A3D
+    - Deep orange:      #F04A1E
+    - Soft orange:      #FF9A5B
+    - Warm paper:       #FDFBF7
+    - Ink:              #1A1613
+    - Mute:             #6B6158
+
+  Font: Poppins (web font), with system-ui fallback for offline mail clients.
+
+  Variables Supabase replaces (default templates):
+    {{ .ConfirmationURL }}   – action link (signup / magic / recovery)
+    {{ .Token }}              – 6-digit OTP if you switch to OTP
+    {{ .TokenHash }}          – hashed token for custom flows
+    {{ .Email }}              – user email
+    {{ .SiteURL }}            – Site URL configured in dashboard
+    {{ .RedirectTo }}         – ?redirect_to in OTP requests
+    {{ .Data.display_name }}  – any user_metadata key (set on signUp)
+    {{ .Data.username }}
+-->
