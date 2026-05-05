@@ -3,6 +3,11 @@
 A premium, modern writing + audio social platform.
 Stories worth slowing down for.
 
+**Documentation:**
+- 📦 [SETUP.md](./SETUP.md) — install, Supabase, Resend, Vercel, Search Console
+- 🧠 [BACKEND.md](./BACKEND.md) — architecture, JWT, RLS, RBAC, storage, realtime, security
+- 🤝 [CONTRIBUTING.md](./CONTRIBUTING.md) — project structure, conventions, PR flow
+
 ## Stack
 
 - **Next.js 14** App Router · **TypeScript** · **Tailwind**
