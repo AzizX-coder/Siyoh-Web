@@ -8,6 +8,7 @@ import { BookmarkButton } from '@/components/social/BookmarkButton';
 import { FollowButton } from '@/components/social/FollowButton';
 import { ShareButton } from '@/components/social/ShareButton';
 import { CommentThread } from '@/components/social/CommentThread';
+import { ReadingTracker } from '@/components/ReadingTracker';
 import { tokens } from '@/lib/tokens';
 import { useTheme } from '@/components/ThemeProvider';
 import type { Story, Comment, Profile } from '@/lib/types';
@@ -28,6 +29,7 @@ export function StoryDetailView({
 
   return (
     <div className="anim-fade-in">
+      <ReadingTracker storyId={story.id} />
       <div style={{ height: 280, background: tokens.orangeGrad, position: 'relative', overflow: 'hidden' }}>
         <div style={{ position: 'absolute', inset: 0,
           background: 'radial-gradient(ellipse at 30% 50%, rgba(255,255,255,0.3), transparent 60%)' }} />
@@ -43,7 +45,7 @@ export function StoryDetailView({
       <article style={{ padding: '0 60px 160px', marginTop: -100, position: 'relative', maxWidth: 740, margin: '0 auto' }}>
         <div className="anim-fade-up" style={{ display: 'flex', gap: 28, alignItems: 'flex-end', marginBottom: 28 }}>
           <div style={{ transform: 'rotate(-2deg)', boxShadow: '0 24px 50px rgba(0,0,0,0.3)', borderRadius: 8 }}>
-            <CoverPlaceholder w={180} h={240} seed={story.cover_seed}
+            <CoverPlaceholder w={180} h={240} seed={story.cover_seed} coverUrl={story.cover_url}
               label={story.title.split(' ').slice(0, 3).join(' ')} />
           </div>
           <div style={{ paddingBottom: 20, flex: 1, marginTop: 30 }}>
@@ -61,15 +63,25 @@ export function StoryDetailView({
               fontFamily: 'var(--font-newsreader)', fontSize: 52, color: '#fff', fontWeight: 400,
               letterSpacing: -1, lineHeight: 1.02, margin: '0 0 14px',
             }}>{story.title}</h1>
-            <Link href={`/profile/${story.author?.username}`} style={{
-              display: 'flex', alignItems: 'center', gap: 10, color: '#fff', textDecoration: 'none',
-            }}>
-              <Avatar name={story.author?.display_name?.[0] || 'A'} size={30} seed={story.cover_seed} />
-              <div style={{ fontFamily: 'var(--font-geist)', fontSize: 13 }}>
-                <div style={{ fontWeight: 500 }}>{story.author?.display_name}</div>
-                <div style={{ opacity: 0.85 }}>@{story.author?.username} &middot; {story.published_at?.slice(5)} &middot; {story.mins} daqiqa</div>
+            {story.author?.username ? (
+              <Link href={`/profile/${story.author.username}`} style={{
+                display: 'flex', alignItems: 'center', gap: 10, color: '#fff', textDecoration: 'none',
+              }}>
+                <Avatar name={story.author.display_name?.[0] || 'A'} size={30} seed={story.cover_seed} />
+                <div style={{ fontFamily: 'var(--font-geist)', fontSize: 13 }}>
+                  <div style={{ fontWeight: 500 }}>{story.author.display_name}</div>
+                  <div style={{ opacity: 0.85 }}>@{story.author.username} &middot; {story.published_at?.slice(5)} &middot; {story.mins} daqiqa</div>
+                </div>
+              </Link>
+            ) : (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, color: '#fff' }}>
+                <Avatar name="?" size={30} seed={story.cover_seed} />
+                <div style={{ fontFamily: 'var(--font-geist)', fontSize: 13 }}>
+                  <div style={{ fontWeight: 500 }}>Noma&apos;lum muallif</div>
+                  <div style={{ opacity: 0.85 }}>{story.published_at?.slice(5)} &middot; {story.mins} daqiqa</div>
+                </div>
               </div>
-            </Link>
+            )}
           </div>
         </div>
 

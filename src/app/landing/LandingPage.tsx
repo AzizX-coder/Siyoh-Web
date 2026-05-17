@@ -351,7 +351,7 @@ export function LandingPage({ stories, writers }: { stories: Story[]; writers: P
                   textDecoration: 'none', color: 'inherit', display: 'block', padding: 16,
                 }}>
                   <div style={{ position: 'relative' }}>
-                    <CoverPlaceholder w="100%" h={200} seed={s.cover_seed}
+                    <CoverPlaceholder w="100%" h={200} seed={s.cover_seed} coverUrl={s.cover_url}
                       label={s.title.split(' ').slice(0, 3).join(' ')} />
                     {s.type === 'audio' && (
                       <div style={{

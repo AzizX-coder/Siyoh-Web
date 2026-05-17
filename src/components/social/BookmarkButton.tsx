@@ -19,13 +19,14 @@ export function BookmarkButton({
   function onClick(e: React.MouseEvent) {
     e.preventDefault();
     e.stopPropagation();
-    const next = !saved;
+    const wasSaved = saved;
+    const next = !wasSaved;
     setSaved(next);
     push({ kind: 'success', title: next ? 'Saqlandi' : 'O\'chirildi' });
     start(async () => {
-      const res = await toggleBookmark(storyId, saved);
+      const res = await toggleBookmark(storyId, wasSaved);
       if (!res.ok) {
-        setSaved(saved);
+        setSaved(wasSaved);
         push({ kind: 'error', title: 'Saqlab bo\'lmadi', body: res.error });
       }
     });

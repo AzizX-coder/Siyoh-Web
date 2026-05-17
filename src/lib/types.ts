@@ -1,4 +1,5 @@
 export type StoryType = 'text' | 'audio' | 'both';
+export type Locale = 'uz' | 'en' | 'ru';
 
 export type Profile = {
   id: string;
@@ -6,6 +7,8 @@ export type Profile = {
   display_name: string;
   bio: string | null;
   avatar_seed: number;
+  cover_url: string | null;
+  locale: Locale;
   role: 'reader' | 'writer' | 'admin';
   created_at: string;
 };
@@ -20,6 +23,7 @@ export type Story = {
   type: StoryType;
   audio_url: string | null;
   cover_seed: number;
+  cover_url: string | null;
   mins: number;
   plays: number;
   likes: number;

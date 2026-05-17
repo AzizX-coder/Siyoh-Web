@@ -17,14 +17,18 @@ export function LikeButton({
   const [pending, start] = useTransition();
 
   function onClick() {
-    const next = !liked;
+    // Capture current state BEFORE optimistic mutation so the rollback
+    // path uses the actual previous values, not stale closures.
+    const wasLiked = liked;
+    const wasCount = count;
+    const next = !wasLiked;
     setLiked(next);
-    setCount(c => c + (next ? 1 : -1));
+    setCount(wasCount + (next ? 1 : -1));
     start(async () => {
-      const res = await toggleLike(storyId, liked);
+      const res = await toggleLike(storyId, wasLiked);
       if (!res.ok) {
-        setLiked(liked);
-        setCount(initialCount);
+        setLiked(wasLiked);
+        setCount(wasCount);
         push({ kind: 'error', title: 'Yoqtirib bo\'lmadi', body: res.error });
       }
     });

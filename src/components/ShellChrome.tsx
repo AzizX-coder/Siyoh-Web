@@ -4,6 +4,7 @@ import { Sidebar } from './Sidebar';
 import { RightRail } from './RightRail';
 import { MiniPlayer } from './MiniPlayer';
 import { BgBlobs } from './BgBlobs';
+import { PushOptIn } from './PushOptIn';
 import { useTheme } from './ThemeProvider';
 import { tokens } from '@/lib/tokens';
 import type { Profile } from '@/lib/types';
@@ -33,6 +34,8 @@ export function ShellChrome({
         {!hideRail && <RightRail />}
       </div>
       <MiniPlayer />
+      {/* Banner only shows when Firebase env is set AND user hasn't decided yet. */}
+      {user && <PushOptIn />}
     </div>
   );
 }

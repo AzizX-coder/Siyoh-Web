@@ -41,6 +41,8 @@ create table if not exists public.profiles (
   display_name text not null,
   bio text,
   avatar_seed int not null default 0,
+  cover_url text,
+  locale text not null default 'uz' check (locale in ('uz', 'en', 'ru')),
   role user_role not null default 'reader',
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
@@ -62,6 +64,7 @@ create table if not exists public.stories (
   type story_type not null default 'text',
   audio_url text,
   cover_seed int not null default 0,
+  cover_url text,
   mins int not null default 5,
   plays int not null default 0,
   likes int not null default 0,
@@ -70,13 +73,20 @@ create table if not exists public.stories (
   tags text[] not null default '{}',
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
-  published_at timestamptz
+  published_at timestamptz,
+  search tsvector generated always as (
+    setweight(to_tsvector('simple', coalesce(title,    '')), 'A') ||
+    setweight(to_tsvector('simple', coalesce(subtitle, '')), 'B') ||
+    setweight(to_tsvector('simple', coalesce(excerpt,  '')), 'C') ||
+    setweight(to_tsvector('simple', coalesce(body,     '')), 'D')
+  ) stored
 );
 
 create index if not exists stories_author_idx on public.stories (author_id);
 create index if not exists stories_status_idx on public.stories (status);
 create index if not exists stories_published_idx on public.stories (published_at desc);
 create index if not exists stories_tags_idx on public.stories using gin (tags);
+create index if not exists stories_search_idx on public.stories using gin (search);
 
 -- ============================================================================
 -- COMMENTS
@@ -359,3 +369,67 @@ create policy "covers user upload" on storage.objects for insert
     and auth.role() = 'authenticated'
     and (storage.foldername(name))[1] = auth.uid()::text
   );
+
+-- ============================================================================
+-- v2 additions — fresh installs include these.
+-- Existing projects: apply the migrations under supabase/migrations/ instead.
+-- ============================================================================
+
+-- Push subscriptions (FCM tokens, one per user-device).
+create table if not exists public.push_subscriptions (
+  id uuid primary key default uuid_generate_v4(),
+  user_id uuid not null references public.profiles(id) on delete cascade,
+  fcm_token text not null,
+  device text,
+  platform text not null check (platform in ('web', 'android', 'ios')),
+  created_at timestamptz not null default now(),
+  last_seen_at timestamptz not null default now(),
+  unique (user_id, fcm_token)
+);
+create index if not exists push_subscriptions_user_idx on public.push_subscriptions (user_id);
+alter table public.push_subscriptions enable row level security;
+drop policy if exists "push_subs self" on public.push_subscriptions;
+create policy "push_subs self" on public.push_subscriptions for all
+  using (user_id = auth.uid()) with check (user_id = auth.uid());
+
+-- Story views (anon + auth). Powers recommendations and "already read" exclusion.
+create table if not exists public.story_views (
+  id uuid primary key default uuid_generate_v4(),
+  story_id uuid not null references public.stories(id) on delete cascade,
+  user_id uuid references public.profiles(id) on delete set null,
+  session_id text,
+  dwell_ms int not null default 0,
+  viewed_at timestamptz not null default now()
+);
+create index if not exists story_views_story_idx on public.story_views (story_id, viewed_at desc);
+create index if not exists story_views_user_idx  on public.story_views (user_id, viewed_at desc) where user_id is not null;
+alter table public.story_views enable row level security;
+drop policy if exists "story_views insert anyone" on public.story_views;
+create policy "story_views insert anyone" on public.story_views for insert with check (true);
+drop policy if exists "story_views self read" on public.story_views;
+create policy "story_views self read" on public.story_views for select
+  using (user_id = auth.uid() or public.is_admin());
+
+create or replace function public.increment_story_plays(p_story_id uuid)
+returns void language sql security definer set search_path = public as $$
+  update public.stories set plays = plays + 1 where id = p_story_id;
+$$;
+grant execute on function public.increment_story_plays(uuid) to anon, authenticated;
+
+-- Audit log (admin-readable mutation trail).
+create table if not exists public.audit_log (
+  id uuid primary key default uuid_generate_v4(),
+  actor_id uuid references public.profiles(id) on delete set null,
+  action text not null check (action in ('insert', 'update', 'delete')),
+  entity_kind text not null,
+  entity_id uuid not null,
+  diff jsonb,
+  created_at timestamptz not null default now()
+);
+create index if not exists audit_log_entity_idx on public.audit_log (entity_kind, entity_id, created_at desc);
+alter table public.audit_log enable row level security;
+drop policy if exists "audit admin read" on public.audit_log;
+create policy "audit admin read" on public.audit_log for select using (public.is_admin());
+
+-- Materialized views + recommendation function: see migrations 0005 + 0008.
+-- (Omitted from schema.sql; apply via supabase/migrations/ in order.)

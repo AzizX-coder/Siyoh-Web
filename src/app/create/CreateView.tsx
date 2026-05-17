@@ -1,15 +1,16 @@
 'use client';
-import { useState, useTransition } from 'react';
+import { useEffect, useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { Icon } from '@/components/Icon';
+import { CoverUpload } from '@/components/CoverUpload';
 import { tokens, liquidSurface } from '@/lib/tokens';
 import { useTheme } from '@/components/ThemeProvider';
 import { useToast } from '@/components/Toast';
-import { publishStory } from '@/lib/actions';
+import { publishStory, saveDraft } from '@/lib/actions';
 
 const TAG_OPTIONS = ['Esse', 'Roman', 'Hikoya', 'She\'r', 'Sayohat', 'Oziq-ovqat', 'Hazil', 'Maktub', 'Audio'];
 
-export function CreateView() {
+export function CreateView({ userId }: { userId?: string | null }) {
   const { dark } = useTheme();
   const { push } = useToast();
   const router = useRouter();
@@ -22,7 +23,37 @@ export function CreateView() {
   const [subtitle, setSubtitle] = useState('');
   const [body, setBody] = useState('');
   const [tags, setTags] = useState<string[]>([]);
+  const [coverUrl, setCoverUrl] = useState<string | null>(null);
+  const [coverSeed] = useState(() => Math.floor(Math.random() * 9));
   const [pending, start] = useTransition();
+
+  // Autosave state: track the persisted draft id + last-saved indicator.
+  const [draftId, setDraftId] = useState<string | null>(null);
+  const [savedAt, setSavedAt] = useState<Date | null>(null);
+  const [savingDraft, setSavingDraft] = useState(false);
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Debounce 2 s after the user stops typing; only fire when there's actual content
+  // and the user is logged in (saveDraft requires auth).
+  useEffect(() => {
+    if (!userId) return;
+    if (!title.trim() && !body.trim()) return;
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(async () => {
+      setSavingDraft(true);
+      const res = await saveDraft({
+        id: draftId || undefined,
+        title, subtitle, body, type,
+        coverUrl: coverUrl || undefined,
+      });
+      setSavingDraft(false);
+      if (res.ok) {
+        if (!draftId && res.id) setDraftId(res.id);
+        setSavedAt(new Date());
+      }
+    }, 2000);
+    return () => { if (saveTimer.current) clearTimeout(saveTimer.current); };
+  }, [title, subtitle, body, type, coverUrl, userId, draftId]);
 
   function toggleTag(t: string) {
     setTags(prev => prev.includes(t) ? prev.filter(x => x !== t) : prev.length < 4 ? [...prev, t] : prev);
@@ -30,7 +61,11 @@ export function CreateView() {
 
   function publish() {
     start(async () => {
-      const res = await publishStory({ title, subtitle, body, type, tags });
+      const res = await publishStory({
+        title, subtitle, body, type, tags,
+        coverUrl: coverUrl || undefined,
+        coverSeed,
+      });
       if (res.ok && res.slug) {
         push({ kind: 'success', title: 'Nashr qilindi', body: 'Hikoyangiz endi onlayn.' });
         router.push(`/story/${res.slug}`);
@@ -48,8 +83,24 @@ export function CreateView() {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 28 }}>
         <div>
           <div style={{ fontFamily: 'var(--font-geist)', fontSize: 11, color: mute, letterSpacing: 0.6,
-            textTransform: 'uppercase', fontWeight: 600, marginBottom: 4 }}>Yangi hikoya</div>
-          <div style={{ fontFamily: 'var(--font-newsreader)', fontSize: 24, color: ink, fontWeight: 400, letterSpacing: -0.3 }}>
+            textTransform: 'uppercase', fontWeight: 600, marginBottom: 4, display: 'flex', gap: 10, alignItems: 'center' }}>
+            <span>Yangi hikoya</span>
+            {savingDraft && (
+              <span style={{
+                display: 'inline-flex', alignItems: 'center', gap: 6,
+                fontSize: 10.5, color: tokens.orangeDeep, fontWeight: 600,
+              }}>
+                <span style={{ width: 6, height: 6, borderRadius: '50%', background: tokens.orange }} className="anim-pulse-ring" />
+                Saqlanmoqda…
+              </span>
+            )}
+            {!savingDraft && savedAt && (
+              <span style={{ fontSize: 10.5, color: mute, fontWeight: 500 }}>
+                Avtomatik saqlandi
+              </span>
+            )}
+          </div>
+          <div style={{ fontFamily: 'var(--font-geist)', fontSize: 24, color: ink, fontWeight: 600, letterSpacing: -0.5 }}>
             {wordCount > 0 ? `${wordCount} so'z · ${readMin} daqiqa o'qish` : 'Yozishni boshlang…'}
           </div>
         </div>
@@ -83,6 +134,31 @@ export function CreateView() {
             <o.icon s={16} c={type === o.k ? tokens.orange : ink} /> {o.label}
           </button>
         ))}
+      </div>
+
+      {/* Cover image — skippable; falls back to a seeded gradient at publish time. */}
+      <div style={{
+        marginBottom: 28, padding: 18, borderRadius: 14,
+        border: `1px solid ${line}`, background: dark ? 'rgba(255,237,213,0.03)' : 'rgba(26,22,19,0.02)',
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+          <div>
+            <div style={{ fontFamily: 'var(--font-geist)', fontSize: 11, color: mute, letterSpacing: 0.6,
+              textTransform: 'uppercase', fontWeight: 700, marginBottom: 2 }}>Muqova</div>
+            <div style={{ fontFamily: 'var(--font-geist)', fontSize: 13.5, color: ink, fontWeight: 500 }}>
+              Hikoya uchun rasm qo&apos;shing
+            </div>
+          </div>
+          <div style={{ fontFamily: 'var(--font-geist)', fontSize: 11.5, color: mute }}>
+            Ixtiyoriy &mdash; keyinroq qo&apos;shsangiz ham bo&apos;ladi
+          </div>
+        </div>
+        <CoverUpload
+          userId={userId}
+          value={coverUrl}
+          fallbackSeed={coverSeed}
+          onChange={setCoverUrl}
+        />
       </div>
 
       <input value={title} onChange={e => setTitle(e.target.value)}

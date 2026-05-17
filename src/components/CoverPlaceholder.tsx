@@ -13,8 +13,32 @@ const tints = [
 const fg = ['#fff', '#F5EDE0', '#3A332C', '#F5EDE0', '#3A332C', '#F5EDE0', '#3A332C', '#fff', '#F5EDE0'];
 
 export function CoverPlaceholder({
-  w = 120, h = 160, seed = 0, label = 'Cover',
-}: { w?: number | string; h?: number | string; seed?: number; label?: string }) {
+  w = 120, h = 160, seed = 0, label = 'Cover', coverUrl,
+}: {
+  w?: number | string;
+  h?: number | string;
+  seed?: number;
+  label?: string;
+  coverUrl?: string | null;
+}) {
+  // If an uploaded cover URL is present, render it as the cover image.
+  // Falls back to the seeded gradient for stories without an upload.
+  if (coverUrl) {
+    return (
+      <div style={{
+        width: w, height: h, borderRadius: 10,
+        position: 'relative', overflow: 'hidden',
+        backgroundImage: `url(${coverUrl})`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        boxShadow: '0 6px 20px rgba(26,22,19,0.18), inset 0 0 0 0.5px rgba(0,0,0,0.08)',
+        flexShrink: 0,
+      }}>
+        <div style={{ position: 'absolute', left: 4, top: 0, bottom: 0, width: 1, background: 'rgba(0,0,0,0.18)' }} />
+      </div>
+    );
+  }
+
   const t = tints[seed % tints.length];
   const fgc = fg[seed % fg.length];
   const numW = typeof w === 'number' ? w : 200;

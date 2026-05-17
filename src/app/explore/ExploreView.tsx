@@ -2,16 +2,19 @@
 import Link from 'next/link';
 import { Avatar } from '@/components/Avatar';
 import { Icon } from '@/components/Icon';
+import { Emoji } from '@/components/Emoji';
 import { tokens, liquidSurface } from '@/lib/tokens';
 import { useTheme } from '@/components/ThemeProvider';
 import type { Profile } from '@/lib/types';
 
+// Real emoji code-points → Twemoji renders them as consistent inline SVG
+// on every OS (no more Apple-vs-Windows font drift).
 const moods = [
-  { t: 'Sokin\nertalablar', c: 'linear-gradient(135deg,#FF6A3D,#FF8A4C)', ic: '☀' },
-  { t: 'Uzun\nesse', c: 'linear-gradient(135deg,#2A241F,#4A3C30)', ic: '✎' },
-  { t: 'Kulgili\nbir narsa', c: 'linear-gradient(135deg,#FFC08A,#FFA560)', ic: '◡' },
-  { t: 'Uxlash\nuchun', c: 'linear-gradient(135deg,#1A1613,#3A2820)', ic: '☾' },
-  { t: 'His\nqilish', c: 'linear-gradient(135deg,#FF5722,#D73900)', ic: '♡' },
+  { t: 'Sokin\nertalablar',  c: 'linear-gradient(135deg,#FF6A3D,#FF8A4C)', ic: '🌅' },
+  { t: 'Uzun\nesse',         c: 'linear-gradient(135deg,#2A241F,#4A3C30)', ic: '✍️' },
+  { t: 'Kulgili\nbir narsa', c: 'linear-gradient(135deg,#FFC08A,#FFA560)', ic: '😄' },
+  { t: 'Uxlash\nuchun',      c: 'linear-gradient(135deg,#1A1613,#3A2820)', ic: '🌙' },
+  { t: 'His\nqilish',        c: 'linear-gradient(135deg,#FF5722,#D73900)', ic: '❤️' },
 ];
 
 export function ExploreView({ writers }: { writers: Profile[] }) {
@@ -42,7 +45,9 @@ export function ExploreView({ writers }: { writers: Profile[] }) {
               cursor: 'pointer', textDecoration: 'none',
               boxShadow: '0 10px 24px rgba(26,22,19,0.15)',
             }}>
-              <div style={{ fontSize: 26, opacity: 0.9 }}>{m.ic}</div>
+              <div style={{ opacity: 0.95, lineHeight: 1 }}>
+                <Emoji size={28}>{m.ic}</Emoji>
+              </div>
               <div style={{ fontFamily: 'var(--font-newsreader)', fontSize: 20, fontWeight: 400,
                 whiteSpace: 'pre-line', letterSpacing: -0.3, lineHeight: 1.05 }}>{m.t}</div>
             </Link>

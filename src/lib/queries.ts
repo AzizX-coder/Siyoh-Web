@@ -16,6 +16,52 @@ export async function getStories(opts: { limit?: number; type?: 'text' | 'audio'
   return (data as Story[]) || [];
 }
 
+// Smart recommendations. Falls back to recent-published if the RPC isn't deployed yet.
+export async function getRecommended(limit: number = 20): Promise<Story[]> {
+  if (!supabaseEnabled) return [];
+  const sb = createClient()!;
+  const { data: { user } } = await sb.auth.getUser();
+  try {
+    const { data, error } = await sb.rpc('recommend_for_user', {
+      p_user_id: user?.id ?? null,
+      p_limit: limit,
+    });
+    if (error) throw error;
+    if (data && data.length > 0) {
+      // RPC returns base story rows; hydrate authors in a single roundtrip.
+      const authorIds = Array.from(new Set((data as Story[]).map(s => s.author_id).filter(Boolean)));
+      if (authorIds.length === 0) return data as Story[];
+      const { data: authors } = await sb.from('profiles').select('*').in('id', authorIds);
+      const map: Record<string, Profile> = {};
+      (authors as Profile[] | null)?.forEach(p => { map[p.id] = p; });
+      return (data as Story[]).map(s => ({ ...s, author: map[s.author_id] }));
+    }
+    return [];
+  } catch {
+    // Migration not applied yet — graceful fallback.
+    return getStories({ limit });
+  }
+}
+
+// Paged feed for infinite scroll (Phase H3).
+export async function getStoriesPage(opts: {
+  cursor?: string | null;   // ISO timestamp of last seen published_at
+  limit?: number;
+  type?: 'text' | 'audio' | 'all';
+}): Promise<Story[]> {
+  if (!supabaseEnabled) return [];
+  const sb = createClient()!;
+  const limit = opts.limit ?? 12;
+  let q = sb.from('stories').select('*, author:profiles!stories_author_id_fkey(*)')
+    .eq('status', 'published')
+    .order('published_at', { ascending: false })
+    .limit(limit);
+  if (opts.cursor) q = q.lt('published_at', opts.cursor);
+  if (opts.type && opts.type !== 'all') q = q.eq('type', opts.type);
+  const { data } = await q;
+  return (data as Story[]) || [];
+}
+
 export async function getStoryBySlug(slug: string): Promise<Story | null> {
   if (!supabaseEnabled) return null;
   const sb = createClient()!;

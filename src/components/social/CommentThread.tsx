@@ -1,4 +1,5 @@
 'use client';
+import Link from 'next/link';
 import { useState, useTransition } from 'react';
 import { Avatar } from '@/components/Avatar';
 import { Icon } from '@/components/Icon';
@@ -6,16 +7,8 @@ import { tokens, liquidSurface } from '@/lib/tokens';
 import { useTheme } from '@/components/ThemeProvider';
 import { useToast } from '@/components/Toast';
 import { addComment } from '@/lib/actions';
+import { timeAgo } from '@/lib/format';
 import type { Comment, Profile } from '@/lib/types';
-
-function timeAgo(d: string) {
-  const ms = Date.now() - new Date(d).getTime();
-  const s = Math.max(1, Math.round(ms / 1000));
-  if (s < 60) return `${s} soniya oldin`;
-  const m = Math.round(s / 60); if (m < 60) return `${m} daqiqa oldin`;
-  const h = Math.round(m / 60); if (h < 24) return `${h} soat oldin`;
-  const dy = Math.round(h / 24); return `${dy} kun oldin`;
-}
 
 export function CommentThread({
   storyId, initialComments = [], me,
@@ -32,11 +25,20 @@ export function CommentThread({
   function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!body.trim()) return;
+    // Don't insert with a fake author_id — FK violation would silently fail.
+    if (!me?.id) {
+      push({
+        kind: 'error',
+        title: 'Kirish kerak',
+        body: 'Sharh qoldirish uchun hisobingizga kiring.',
+      });
+      return;
+    }
     const optimistic: Comment = {
-      id: 'tmp-' + Math.random().toString(36).slice(2),
-      story_id: storyId, author_id: me?.id || 'me', body: body.trim(),
+      id: 'tmp-' + crypto.randomUUID().slice(0, 8),
+      story_id: storyId, author_id: me.id, body: body.trim(),
       created_at: new Date().toISOString(),
-      author: me || undefined,
+      author: me,
     };
     setComments(c => [optimistic, ...c]);
     setBody('');
@@ -59,9 +61,27 @@ export function CommentThread({
         <span style={{ fontFamily: 'var(--font-geist)', fontSize: 12, color: mute }}>{comments.length}</span>
       </div>
 
+      {!me && (
+        <Link href="/auth/login" style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '14px 16px', borderRadius: 12, marginBottom: 18,
+          background: dark ? 'rgba(255,87,34,0.10)' : 'rgba(255,87,34,0.08)',
+          textDecoration: 'none',
+        }}>
+          <span style={{ fontFamily: 'var(--font-geist)', fontSize: 13.5, color: ink }}>
+            Sharh qoldirish uchun hisobingizga kiring.
+          </span>
+          <span style={{ fontFamily: 'var(--font-geist)', fontSize: 12.5, color: tokens.orange,
+            fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+            Kirish <Icon.chev s={13} c={tokens.orange} />
+          </span>
+        </Link>
+      )}
+
       <form onSubmit={submit} style={{
         ...liquidSurface({ dark, intensity: 'med' }),
         borderRadius: 16, padding: 16, display: 'flex', gap: 12, marginBottom: 24,
+        opacity: me ? 1 : 0.55, pointerEvents: me ? 'auto' : 'none',
       }}>
         <Avatar name={me?.display_name?.[0] || 'A'} size={36} seed={me?.avatar_seed ?? 0} />
         <div style={{ flex: 1 }}>

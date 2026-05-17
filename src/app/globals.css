@@ -241,6 +241,15 @@ body { letter-spacing: -0.005em; }
 }
 .anim-float-illustration { animation: float-illustration 6s ease-in-out infinite; }
 
+/* Twemoji — consistent emoji rendering across OSes via inline SVG */
+img.siyoh-twemoji {
+  display: inline-block;
+  vertical-align: -0.18em;
+  width: var(--tw-size, 1em);
+  height: var(--tw-size, 1em);
+  margin: 0 0.05em;
+}
+
 /* Word rotator (used in hero) */
 @keyframes word-rotate {
   0%, 22% { transform: translateY(0); }

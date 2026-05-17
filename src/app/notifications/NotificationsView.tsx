@@ -1,12 +1,14 @@
 'use client';
 import Link from 'next/link';
-import { useEffect, useTransition } from 'react';
+import { useEffect, useState, useTransition } from 'react';
 import { Avatar } from '@/components/Avatar';
 import { Icon } from '@/components/Icon';
 import { Illust } from '@/components/Illustrations';
 import { tokens, liquidSurface } from '@/lib/tokens';
 import { useTheme } from '@/components/ThemeProvider';
 import { markNotificationsRead } from '@/lib/actions';
+import { timeAgoShort } from '@/lib/format';
+import { createClient, supabaseEnabled } from '@/lib/supabase/client';
 import type { Profile } from '@/lib/types';
 
 type Item = { id: string; kind: string; payload: any; created_at: string; read_at: string | null; from?: Profile };
@@ -25,23 +27,46 @@ const KIND_TEXT: Record<string, (n: Item) => string> = {
   contest: n => n.payload?.text || 'Tanlov yangiligi',
 };
 
-function timeAgo(d: string) {
-  const ms = Date.now() - new Date(d).getTime();
-  const s = Math.max(1, Math.round(ms / 1000));
-  if (s < 60) return `${s} son`;
-  const m = Math.round(s / 60); if (m < 60) return `${m} daq`;
-  const h = Math.round(m / 60); if (h < 24) return `${h} soat`;
-  const dy = Math.round(h / 24); return `${dy} kun`;
-}
-
-export function NotificationsView({ items }: { items: Item[] }) {
+export function NotificationsView({ items: initial }: { items: Item[] }) {
   const { dark } = useTheme();
   const ink = dark ? tokens.darkInk : tokens.ink;
   const mute = dark ? tokens.darkMute : tokens.mute;
   const line = dark ? tokens.darkLine : tokens.line;
+  const [items, setItems] = useState<Item[]>(initial);
   const [, start] = useTransition();
 
   useEffect(() => { start(() => { markNotificationsRead(); }); }, []);
+
+  // Realtime: prepend live inserts. Channel auto-closes on unmount.
+  useEffect(() => {
+    if (!supabaseEnabled) return;
+    const sb = createClient();
+    if (!sb) return;
+    let active = true;
+
+    (async () => {
+      const { data: { user } } = await sb.auth.getUser();
+      if (!user || !active) return;
+      const channel = sb.channel(`notif:${user.id}`)
+        .on('postgres_changes',
+          { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${user.id}` },
+          (payload) => {
+            const row = payload.new as any;
+            setItems(prev => [{
+              id: row.id,
+              kind: row.kind,
+              payload: row.payload,
+              created_at: row.created_at,
+              read_at: row.read_at,
+            }, ...prev]);
+          })
+        .subscribe();
+
+      return () => { sb.removeChannel(channel); };
+    })();
+
+    return () => { active = false; };
+  }, []);
 
   return (
     <div style={{ padding: '32px 60px 160px', maxWidth: 760, margin: '0 auto' }}>
@@ -80,7 +105,7 @@ export function NotificationsView({ items }: { items: Item[] }) {
                 background: !n.read_at ? (dark ? 'rgba(255,87,34,0.05)' : 'rgba(255,87,34,0.04)') : 'transparent',
               }}>
                 {from ? (
-                  <Avatar name={from.display_name[0]} size={40} seed={from.avatar_seed} />
+                  <Avatar name={from.display_name?.[0] ?? '?'} size={40} seed={from.avatar_seed ?? 0} />
                 ) : (
                   <div style={{
                     width: 40, height: 40, borderRadius: '50%',
@@ -90,11 +115,11 @@ export function NotificationsView({ items }: { items: Item[] }) {
                 )}
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontFamily: 'var(--font-geist)', fontSize: 14, color: ink, marginBottom: 2 }}>
-                    {from && <span style={{ fontWeight: 600 }}>{from.display_name} </span>}
+                    {from?.display_name && <span style={{ fontWeight: 600 }}>{from.display_name} </span>}
                     {text}
                   </div>
                   <div style={{ fontFamily: 'var(--font-geist)', fontSize: 12, color: mute }}>
-                    {timeAgo(n.created_at)} oldin
+                    {timeAgoShort(n.created_at, 'uz')} oldin
                   </div>
                 </div>
                 {!n.read_at && (

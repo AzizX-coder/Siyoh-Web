@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Avatar } from '@/components/Avatar';
 import { Icon } from '@/components/Icon';
+import { CoverUpload } from '@/components/CoverUpload';
 import { tokens } from '@/lib/tokens';
 import { useTheme } from '@/components/ThemeProvider';
 import { useToast } from '@/components/Toast';
@@ -21,12 +22,15 @@ export function EditProfileView({ profile }: { profile: Profile }) {
   const [name, setName] = useState(profile.display_name);
   const [bio, setBio] = useState(profile.bio || '');
   const [seed, setSeed] = useState(profile.avatar_seed);
+  const [coverUrl, setCoverUrl] = useState<string | null>(profile.cover_url ?? null);
   const [pending, start] = useTransition();
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
     start(async () => {
-      const res = await updateProfile({ display_name: name, bio, avatar_seed: seed });
+      const res = await updateProfile({
+        display_name: name, bio, avatar_seed: seed, cover_url: coverUrl,
+      });
       if (res.ok) {
         push({ kind: 'success', title: 'Profil saqlandi' });
         router.push(`/profile/${profile.username}`);
@@ -68,6 +72,19 @@ export function EditProfileView({ profile }: { profile: Profile }) {
               </button>
             ))}
           </div>
+        </div>
+        <div>
+          <label style={{ fontFamily: 'var(--font-geist)', fontSize: 11, color: mute,
+            letterSpacing: 0.6, textTransform: 'uppercase', fontWeight: 700,
+            display: 'block', marginBottom: 12 }}>Profil muqovasi</label>
+          <CoverUpload
+            userId={profile.id}
+            bucket="covers"
+            value={coverUrl}
+            fallbackSeed={profile.avatar_seed}
+            aspect="16 / 6"
+            onChange={setCoverUrl}
+          />
         </div>
         <div>
           <label style={{ fontFamily: 'var(--font-geist)', fontSize: 11, color: mute,

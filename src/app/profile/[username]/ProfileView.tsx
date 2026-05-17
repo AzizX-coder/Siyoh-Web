@@ -27,9 +27,16 @@ export function ProfileView({
 
   return (
     <div>
-      <div style={{ height: 180, background: tokens.orangeGradSoft, position: 'relative' }}>
+      <div style={{
+        height: 180, position: 'relative',
+        background: profile.cover_url
+          ? `url(${profile.cover_url}) center/cover no-repeat, ${tokens.orangeGradSoft}`
+          : tokens.orangeGradSoft,
+      }}>
         <div style={{ position: 'absolute', inset: 0,
-          background: 'radial-gradient(ellipse at 70% 50%, rgba(255,138,76,0.4), transparent 60%)' }} />
+          background: profile.cover_url
+            ? 'linear-gradient(180deg, rgba(0,0,0,0) 40%, rgba(0,0,0,0.25) 100%)'
+            : 'radial-gradient(ellipse at 70% 50%, rgba(255,138,76,0.4), transparent 60%)' }} />
       </div>
 
       <div style={{ padding: '0 36px', marginTop: -52, position: 'relative' }}>

@@ -56,7 +56,8 @@ export function StoryRow({ story, seed = 0 }: { story: Story; seed?: number }) {
           <BookmarkButton storyId={story.id} size={14} />
         </div>
       </div>
-      <CoverPlaceholder w={180} h={200} seed={story.cover_seed} label={story.title.split(' ').slice(0, 3).join(' ')} />
+      <CoverPlaceholder w={180} h={200} seed={story.cover_seed} coverUrl={story.cover_url}
+        label={story.title.split(' ').slice(0, 3).join(' ')} />
     </Link>
   );
 }

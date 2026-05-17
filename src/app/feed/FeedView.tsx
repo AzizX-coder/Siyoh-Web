@@ -5,6 +5,7 @@ import { Avatar } from '@/components/Avatar';
 import { Chip } from '@/components/Chip';
 import { CoverPlaceholder } from '@/components/CoverPlaceholder';
 import { StoryRow } from '@/components/StoryRow';
+import { InfiniteStoryList } from '@/components/InfiniteStoryList';
 import { Icon } from '@/components/Icon';
 import { Illust } from '@/components/Illustrations';
 import { tokens, liquidSurface } from '@/lib/tokens';
@@ -112,7 +113,7 @@ export function FeedView({ stories }: { stories: Story[] }) {
                   </div>
                 </div>
                 <div style={{ position: 'relative', zIndex: 1, transform: 'rotate(3deg)' }}>
-                  <CoverPlaceholder w={200} h={270} seed={featured.cover_seed}
+                  <CoverPlaceholder w={200} h={270} seed={featured.cover_seed} coverUrl={featured.cover_url}
                     label={featured.title.split(' ').slice(0, 3).join(' ')} />
                 </div>
               </div>
@@ -125,7 +126,9 @@ export function FeedView({ stories }: { stories: Story[] }) {
                 letterSpacing: -0.4, margin: 0 }}>Siyohdan so&apos;nggilari</h3>
               <Link href="/books" style={{ fontFamily: 'var(--font-geist)', fontSize: 13, color: tokens.orange, fontWeight: 500, textDecoration: 'none' }}>Hammasi &rarr;</Link>
             </div>
-            {rest.map((s, i) => <StoryRow key={s.id} story={s} seed={i + 1} />)}
+            <InfiniteStoryList initial={rest} />
+            {/* StoryRow is kept imported for type-locality; remove later if unused. */}
+            {false && <StoryRow story={rest[0]} />}
           </div>
         </>
       )}

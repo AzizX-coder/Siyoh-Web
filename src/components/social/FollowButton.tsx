@@ -19,12 +19,13 @@ export function FollowButton({
   function onClick(e: React.MouseEvent) {
     e.preventDefault();
     e.stopPropagation();
-    const next = !following;
+    const wasFollowing = following;
+    const next = !wasFollowing;
     setFollowing(next);
     start(async () => {
-      const res = await toggleFollow(targetId, following);
+      const res = await toggleFollow(targetId, wasFollowing);
       if (!res.ok) {
-        setFollowing(following);
+        setFollowing(wasFollowing);
         push({ kind: 'error', title: 'Yangilab bo\'lmadi', body: res.error });
       } else if (next) {
         push({ kind: 'success', title: `${displayName || 'Yozuvchi'} kuzatilmoqda` });

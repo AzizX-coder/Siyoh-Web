@@ -111,7 +111,8 @@ export function BooksView({ stories }: { stories: Story[] }) {
           {filtered.map((s) => (
             <Link key={s.id} href={`/story/${s.slug}`} className="hover-lift" style={{ textDecoration: 'none', color: 'inherit' }}>
               <div style={{ position: 'relative' }}>
-                <CoverPlaceholder w="100%" h={280} seed={s.cover_seed} label={s.title.split(' ').slice(0, 3).join(' ')} />
+                <CoverPlaceholder w="100%" h={280} seed={s.cover_seed} coverUrl={s.cover_url}
+                  label={s.title.split(' ').slice(0, 3).join(' ')} />
                 {s.type === 'audio' && (
                   <div style={{
                     position: 'absolute', top: 10, right: 10,
