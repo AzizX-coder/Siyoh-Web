@@ -88,28 +88,26 @@ export function LandingPage({ stories, writers }: { stories: Story[]; writers: P
         <div style={{ display: 'grid', gridTemplateColumns: '1.05fr 0.95fr', gap: 56, alignItems: 'center' }}>
           <div>
             <div className="anim-fade-up" style={{
-              display: 'inline-flex', alignItems: 'center', gap: 8,
-              padding: '6px 12px', borderRadius: 999,
-              background: dark ? 'rgba(255,87,34,0.14)' : 'rgba(255,87,34,0.10)',
-              color: tokens.orangeDeep,
-              fontFamily: 'var(--font-geist)', fontSize: 12, fontWeight: 600,
+              display: 'inline-flex', alignItems: 'center', gap: 10,
+              padding: '6px 12px 6px 8px', borderRadius: 999,
+              background: dark ? 'rgba(255,237,213,0.06)' : 'rgba(26,22,19,0.05)',
+              color: dark ? tokens.darkInk : tokens.ink,
+              fontFamily: 'var(--font-geist)', fontSize: 12, fontWeight: 500, letterSpacing: 0.1,
               marginBottom: 22,
             }}>
-              <span style={{ width: 6, height: 6, borderRadius: '50%', background: tokens.orange }} className="anim-pulse-ring" />
-              Hozir beta
+              <span style={{
+                padding: '2px 8px', borderRadius: 999,
+                background: tokens.orangeGrad, color: '#fff',
+                fontSize: 10.5, fontWeight: 700, letterSpacing: 0.4,
+              }}>BETA</span>
+              Yozuvchilar uchun yangi maydon
             </div>
             <h1 className="anim-fade-up delay-100" style={{
-              fontFamily: 'var(--font-geist)', fontSize: 64, fontWeight: 700,
-              letterSpacing: -1.6, lineHeight: 1.05, margin: '0 0 18px', color: ink,
+              fontFamily: 'var(--font-geist)', fontSize: 68, fontWeight: 700,
+              letterSpacing: -1.8, lineHeight: 1.02, margin: '0 0 18px', color: ink,
             }}>
-              <span className="word-rotator" style={{ minWidth: '4ch' }}>
-                <span>Sekin</span>
-                <span>Halol</span>
-                <span>Sokin</span>
-                <span>Chuqur</span>
-              </span>{' '}
-              <span className="grad-text">o&apos;qish</span>.<br/>
-              Hayotni yozing.<span className="cursor" style={{ color: tokens.orange, fontWeight: 400 }}>|</span>
+              Sekin o&apos;qish.<br/>
+              <span className="grad-text">Halol</span> yozish.
             </h1>
             <p className="anim-fade-up delay-200" style={{
               fontFamily: 'var(--font-geist)', fontSize: 18, color: mute,
@@ -150,31 +148,9 @@ export function LandingPage({ stories, writers }: { stories: Story[]; writers: P
             </div>
           </div>
 
-          <div className="anim-scale-in delay-200" style={{ display: 'flex', justifyContent: 'center', position: 'relative' }}>
-            <div className="anim-float-illustration" style={{ width: '100%', maxWidth: 480 }}>
+          <div className="anim-scale-in delay-200" style={{ display: 'flex', justifyContent: 'center' }}>
+            <div style={{ width: '100%', maxWidth: 480 }}>
               <Illust.heroScene size={460} />
-            </div>
-            {/* floating badges */}
-            <div className="anim-drift" style={{
-              position: 'absolute', top: 12, right: 8, padding: '8px 12px',
-              borderRadius: 999, background: '#fff',
-              border: `1px solid ${line}`,
-              fontFamily: 'var(--font-geist)', fontSize: 12, fontWeight: 600, color: ink,
-              display: 'inline-flex', alignItems: 'center', gap: 6,
-              boxShadow: '0 8px 20px rgba(26,22,19,0.06)',
-            }}>
-              <Icon.heart s={14} c={tokens.orange} filled /> +12
-            </div>
-            <div className="anim-drift" style={{
-              animationDelay: '1s',
-              position: 'absolute', bottom: 36, left: 0, padding: '8px 12px',
-              borderRadius: 999, background: '#fff',
-              border: `1px solid ${line}`,
-              fontFamily: 'var(--font-geist)', fontSize: 12, fontWeight: 600, color: ink,
-              display: 'inline-flex', alignItems: 'center', gap: 6,
-              boxShadow: '0 8px 20px rgba(26,22,19,0.06)',
-            }}>
-              <Icon.bookmark s={14} c={tokens.orangeDeep} filled /> Saqlandi
             </div>
           </div>
         </div>
