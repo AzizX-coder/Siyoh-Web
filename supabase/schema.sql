@@ -431,5 +431,171 @@ alter table public.audit_log enable row level security;
 drop policy if exists "audit admin read" on public.audit_log;
 create policy "audit admin read" on public.audit_log for select using (public.is_admin());
 
--- Materialized views + recommendation function: see migrations 0005 + 0008.
--- (Omitted from schema.sql; apply via supabase/migrations/ in order.)
+-- ============================================================================
+-- Materialized views: story_score + user_tag_affinity
+-- (Refresh schedule: see pg_cron section below.)
+-- ============================================================================
+
+create materialized view if not exists public.story_score as
+select
+  s.id as story_id,
+  s.author_id,
+  s.published_at,
+  s.tags,
+  (
+    0.45 * exp(- extract(epoch from (now() - coalesce(s.published_at, s.created_at))) / (86400.0 * 14))
+    + 0.30 * ln(1 + s.plays)
+    + 0.25 * ln(1 + s.likes)
+  ) as score,
+  now() as refreshed_at
+from public.stories s
+where s.status = 'published';
+
+create unique index if not exists story_score_pk on public.story_score (story_id);
+create index        if not exists story_score_idx on public.story_score (score desc);
+
+create materialized view if not exists public.user_tag_affinity as
+with raw as (
+  select sv.user_id, unnest(s.tags) as tag, count(*)::float * 1 as w
+  from public.story_views sv
+  join public.stories s on s.id = sv.story_id
+  where sv.user_id is not null
+  group by sv.user_id, unnest(s.tags)
+  union all
+  select l.user_id, unnest(s.tags), count(*)::float * 3
+  from public.likes l join public.stories s on s.id = l.story_id
+  group by l.user_id, unnest(s.tags)
+  union all
+  select b.user_id, unnest(s.tags), count(*)::float * 5
+  from public.bookmarks b join public.stories s on s.id = b.story_id
+  group by b.user_id, unnest(s.tags)
+),
+summed as (select user_id, tag, sum(w) as raw_score from raw group by user_id, tag),
+totals as (select user_id, sum(raw_score) as total from summed group by user_id)
+select s.user_id, s.tag,
+       case when t.total > 0 then s.raw_score / t.total else 0 end as score,
+       now() as refreshed_at
+from summed s join totals t on t.user_id = s.user_id;
+
+create unique index if not exists user_tag_affinity_pk on public.user_tag_affinity (user_id, tag);
+
+-- ============================================================================
+-- Recommendation function (anonymous-safe; falls back to pure popularity)
+-- ============================================================================
+
+create or replace function public.recommend_for_user(
+  p_user_id uuid default null,
+  p_limit   int  default 20
+)
+returns setof public.stories
+language sql stable
+as $$
+  with base as (
+    select s.*, coalesce(sc.score, 0) as base_score
+    from public.stories s
+    left join public.story_score sc on sc.story_id = s.id
+    where s.status = 'published' and (p_user_id is null or s.author_id <> p_user_id)
+  ),
+  affinity as (
+    select b.id, coalesce(sum(uta.score), 0) as affinity_sum
+    from base b
+    left join lateral (
+      select uta.score from public.user_tag_affinity uta
+      where uta.user_id = p_user_id and uta.tag = any(b.tags)
+    ) uta on true
+    group by b.id
+  ),
+  followed as (select following_id from public.follows where follower_id = p_user_id),
+  already_read as (
+    select distinct story_id from public.story_views
+    where user_id = p_user_id and viewed_at > now() - interval '60 days'
+  )
+  select b.id, b.slug, b.title, b.subtitle, b.excerpt, b.body, b.type, b.audio_url,
+         b.cover_seed, b.cover_url, b.mins, b.plays, b.likes, b.status, b.author_id,
+         b.tags, b.created_at, b.updated_at, b.published_at, b.search
+  from base b join affinity a on a.id = b.id
+  order by (
+    b.base_score + 1.5 * a.affinity_sum
+    + case when b.author_id in (select following_id from followed) then 0.5 else 0 end
+    - case when b.id in (select story_id from already_read) then 0.8 else 0 end
+  ) desc, b.published_at desc nulls last
+  limit greatest(1, p_limit);
+$$;
+
+grant execute on function public.recommend_for_user(uuid, int) to anon, authenticated;
+
+-- ============================================================================
+-- pg_cron schedules (optional but recommended for fresh popularity scores)
+-- Comment these out if pg_cron isn't enabled in your Supabase plan.
+-- ============================================================================
+
+create extension if not exists pg_cron;
+
+do $$ begin
+  -- Hourly story score refresh
+  perform cron.schedule('siyoh-refresh-story-score', '0 * * * *',
+    $cron$ refresh materialized view concurrently public.story_score; $cron$);
+exception when others then null; end $$;
+
+do $$ begin
+  perform cron.schedule('siyoh-refresh-user-tag-affinity', '15 */3 * * *',
+    $cron$ refresh materialized view concurrently public.user_tag_affinity; $cron$);
+exception when others then null; end $$;
+
+-- ============================================================================
+-- Notification dispatcher (in-app insert; web push via Edge Function — see
+-- supabase/functions/notify-user/. Falls back to in-app only when not set.)
+-- ============================================================================
+
+create extension if not exists pg_net;
+
+create or replace function public.dispatch_notify(
+  p_user_id uuid, p_kind text, p_payload jsonb
+) returns void language plpgsql security definer set search_path = public as $$
+declare
+  v_url text := current_setting('app.notify_url', true);
+  v_key text := current_setting('app.notify_key', true);
+begin
+  if v_url is null or v_url = '' then
+    insert into public.notifications (user_id, kind, payload) values (p_user_id, p_kind, p_payload);
+    return;
+  end if;
+  perform net.http_post(
+    url := v_url,
+    headers := jsonb_build_object('Content-Type','application/json','Authorization','Bearer '||coalesce(v_key,'')),
+    body := jsonb_build_object('user_id', p_user_id, 'kind', p_kind, 'payload', p_payload)
+  );
+end $$;
+
+create or replace function public.on_like_insert() returns trigger language plpgsql security definer set search_path = public as $$
+declare v_author uuid; v_slug text;
+begin
+  select author_id, slug into v_author, v_slug from public.stories where id = new.story_id;
+  if v_author is null or v_author = new.user_id then return new; end if;
+  perform public.dispatch_notify(v_author, 'like',
+    jsonb_build_object('from', new.user_id, 'story_id', new.story_id, 'story_slug', v_slug));
+  return new;
+end $$;
+drop trigger if exists likes_notify on public.likes;
+create trigger likes_notify after insert on public.likes for each row execute function public.on_like_insert();
+
+create or replace function public.on_follow_insert() returns trigger language plpgsql security definer set search_path = public as $$
+begin
+  if new.follower_id = new.following_id then return new; end if;
+  perform public.dispatch_notify(new.following_id, 'follow', jsonb_build_object('from', new.follower_id));
+  return new;
+end $$;
+drop trigger if exists follows_notify on public.follows;
+create trigger follows_notify after insert on public.follows for each row execute function public.on_follow_insert();
+
+create or replace function public.on_comment_insert() returns trigger language plpgsql security definer set search_path = public as $$
+declare v_author uuid; v_slug text;
+begin
+  select author_id, slug into v_author, v_slug from public.stories where id = new.story_id;
+  if v_author is null or v_author = new.author_id then return new; end if;
+  perform public.dispatch_notify(v_author, 'comment',
+    jsonb_build_object('from', new.author_id, 'story_id', new.story_id, 'story_slug', v_slug, 'comment_id', new.id));
+  return new;
+end $$;
+drop trigger if exists comments_notify on public.comments;
+create trigger comments_notify after insert on public.comments for each row execute function public.on_comment_insert();
